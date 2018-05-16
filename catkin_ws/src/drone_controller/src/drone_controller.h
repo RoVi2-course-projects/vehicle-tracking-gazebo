@@ -26,7 +26,7 @@
 #include <list>
 #include <fstream>
 
-#define tracking_altitude_ 40
+#define tracking_altitude_ 20
 #define max_pixel_error_before_descending_ 50
 #define max_angle_error_before_descending_ M_PI/6
 
@@ -49,6 +49,9 @@ public:
   void pose_cb(const drone_controller::markerpose::ConstPtr& msg);
   void altitude_cb(const mavros_msgs::Altitude::ConstPtr& msg);
   void heading_cb(const std_msgs::Float64::ConstPtr& msg);
+
+  double get_gsd(double height, double fov, double pixel_w);
+  double calculate_distance_to_target(double gsd, double x, double y);
   ~DroneController();
 private:
 ofstream save_data_file;
@@ -77,6 +80,9 @@ PID pid_height;
 double tracking_altitude = tracking_altitude_;
 double max_pixel_error_before_descending = max_pixel_error_before_descending_;
 double max_angle_error_before_descending = max_angle_error_before_descending_;
+
+double fov_camera;
+double pixel_w_camera;
 
 };
 

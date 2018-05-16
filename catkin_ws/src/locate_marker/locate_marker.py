@@ -53,7 +53,7 @@ class LocateMarker:
     im2,contours,hierarchy = cv2.findContours(image_gray, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     witdh, height = cv_image.shape[:2]
     print(witdh, height)
-
+    
     if contours:
         cnt = contours[0]
         M = cv2.moments(cnt)
