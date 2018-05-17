@@ -49,8 +49,8 @@ def get_position(blockName="Marker", relative_entity_name="link"):
     return point
 
 def gps_position_publishers():
-    pos_pub = rospy.Publisher('bus_model/gps_position', Point, queue_size=10)
-    noisy_pos_pub = rospy.Publisher('bus_model/gps_position_noised', Point, queue_size=10)
+    pos_pub = rospy.Publisher('/marker_model/gps_position', Point, queue_size=10)
+    noisy_pos_pub = rospy.Publisher('/marker_model/gps_position_noised', Point, queue_size=10)
     rate = rospy.Rate(GPS_FREQUENCY)
 
     while not rospy.is_shutdown():

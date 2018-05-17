@@ -185,7 +185,7 @@ class LocatorDriver:
 
 class RosPublisher:
     def __init__(self, markers, markerpose_ros_topic):
-        self.loc_pub = rospy.Publisher('location', Point, queue_size=10)
+        self.loc_pub = rospy.Publisher('/markerlocator/location', Point, queue_size=10)
         # Instantiate ros publisher with information about the markers that
         # will be tracked.
         self.markers = markers

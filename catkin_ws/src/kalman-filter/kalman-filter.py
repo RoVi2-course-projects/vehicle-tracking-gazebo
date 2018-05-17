@@ -9,9 +9,9 @@ class KalmanFilterNode():
 
     def __init__(self):
         # Subscribers configuration
-        rospy.Subscriber("/marker_location", Point, self.marker_callback,
+        rospy.Subscriber("/markerlocator/location", Point, self.marker_callback,
                          queue_size=1)
-        rospy.Subscriber("/gps_location", Point, self.gps_callback,
+        rospy.Subscriber("/marker_model/gps_position_noised", Point, self.gps_callback,
                          queue_size=1)
         # Publisher configuration
         pub_topic = "/position_estimate"
