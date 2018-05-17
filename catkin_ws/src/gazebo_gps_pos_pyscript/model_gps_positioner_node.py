@@ -19,6 +19,8 @@ def apply_noise(noise_free_point):
     # Constant offset is a result of the receiver not being aligned with
     # a marker perfectly; offset has been chosen arbitrarily.
 
+    #
+
     offset_x = 0.2
     offset_y = 0.7
     offset_z = 1.2
