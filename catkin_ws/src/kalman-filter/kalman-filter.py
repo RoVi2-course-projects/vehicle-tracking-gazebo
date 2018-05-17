@@ -8,8 +8,14 @@ from geometry_msgs.msg import Point
 class KalmanFilterNode():
 
     def __init__(self):
-        rospy.Subscriber("location", Point, self.marker_callback)
-        rospy.Subscriber("gps", Point, self.gps_callback)
+        # Subscribers configuration
+        rospy.Subscriber("/marker_location", Point, self.marker_callback,
+                         queue_size=1)
+        rospy.Subscriber("/gps_location", Point, self.gps_callback,
+                         queue_size=1)
+        # Publisher configuration
+        pub_topic = "/position_estimate"
+        self.publisher = rospy.Publisher(pub_topic, Point, queue_size=1)
         # Variance matrices
         self.var = 30
         self.gps_var = 10
@@ -21,11 +27,11 @@ class KalmanFilterNode():
         self.marker_input = None
 
     def gps_callback(self, data):
-        self.gps_input = [data.x, data.y, data.z]
+        self.gps_input = np.array([data.x, data.y, data.z]).reshape(3,1)
         return
 
     def marker_callback(self, data):
-        self.marker_input = [data.x, data.y, data.z]
+        self.marker_input = np.array([data.x, data.y, data.z]).reshape(3,1)
         return
 
     def update(self):
@@ -43,35 +49,41 @@ class KalmanFilterNode():
         pred_state = np.dot(np.eye(3), self.gps_input)
         pred_var = self.var + self.gps_var
         # 2nd stage: Correct the value with the marker data
-        kalman_gain = pred_var / (pred_var+self.marker_var)
+        kalman_gain = float(pred_var) / (pred_var+self.marker_var)
         self.position = pred_state + kalman_gain*(self.marker_input-
                                                   pred_state)
         self.var = pred_var * (1-kalman_gain)
+        print("GPS data: [{}, {}, {}]".format(self.gps_input[0],
+                                              self.gps_input[1],
+                                              self.gps_input[2]))
+        print("Marker data: [{}, {}, {}]".format(self.marker_input[0],
+                                                 self.marker_input[1],
+                                                 self.marker_input[2]))
+        print("Estimated pos: [{}, {}, {}]".format(self.position[0],
+                                                   self.position[1],
+                                                   self.position[2]))
+        self.gps_input = None
+        self.marker_input = None
+        return
+
+    def run(self):
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            self.update()
+            est_position = Point(self.position[0][0], self.position[1][0],
+                                 self.position[2][0])
+            self.publisher.publish(est_position)
+            rate.sleep()
         return
 
 
 def main():
     # Init node and publisher object
     rospy.init_node("kalman_filter", anonymous=True)
-    pub_topic = "/position_estimate"
-    publisher = rospy.Publisher(pub_topic, Point, queue_size=1)
-    est_position = Point
-    # Instantiate a kalman object
+    # Instantiate the KalmaFilter class and run it.
     kalman_filter = KalmanFilterNode()
-    # Run main loop
-    rate = rospy.Rate(100)
-    # while not rospy.is_shutdown():
-    kalman_filter.update()
-    est_position.x = kalman_filter.position[0][0]
-    est_position.y = kalman_filter.position[1][0]
-    est_position.z = kalman_filter.position[2][0]
-    pos = kalman_filter.position
-    print("Estimated pos: [{}, {}, {}]".format(est_position.x,
-                                                est_position.y,
-                                                est_position.z))
-    publisher.publish(est_position)
-    rate.sleep()
-    return kalman_filter
+    kalman_filter.run()
+    return
 
 
 if __name__ == "__main__":
