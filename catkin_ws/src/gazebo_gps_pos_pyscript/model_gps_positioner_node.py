@@ -5,14 +5,14 @@ from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Point
 
 GPS_FREQUENCY = 50 # [BroadcastsPerSecond]
-MODEL_NAME = "Bus" 
+MODEL_NAME = "Marker"
 
 def apply_noise(noise_free_point):
     # Noise model based on wikipedia saying that GPS accuracy is 5 meters
     # Assuming that what they mean is 99% Spherical Accuracy Standard = 5 [m]
     # 99SAS = 1.122(sigma_x + sigma_y + sigma_z) = 5 [m]
     # http://www.novatel.com/assets/Documents/Bulletins/apn029.pdf
-    
+
     # Also standard deviation for Z axis is gonna be higher, due to less
     # variance in satelites heights; sigma_z = 2*sigma_x = 2*sigma_y.
 
@@ -32,10 +32,10 @@ def apply_noise(noise_free_point):
     noisy_point.x = np.random.normal(noise_free_point.x,sigma_x,1) + offset_x
     noisy_point.y = np.random.normal(noise_free_point.y,sigma_y,1) + offset_y
     noisy_point.z = np.random.normal(noise_free_point.z,sigma_z,1) + offset_z
-    
+
     return noisy_point
 
-def get_position(blockName="bus", relative_entity_name="link"):
+def get_position(blockName="Marker", relative_entity_name="link"):
     try:
         model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
         resp_coordinates = model_coordinates(blockName, relative_entity_name)
@@ -45,7 +45,7 @@ def get_position(blockName="bus", relative_entity_name="link"):
 
     except rospy.ServiceException as e:
         rospy.loginfo("Get Model State service call failed: {0}".format(e))
-    
+
     return point
 
 def gps_position_publishers():
@@ -65,4 +65,3 @@ if __name__ == '__main__':
         gps_position_publishers()
     except rospy.ROSInterruptException:
         pass
-	 

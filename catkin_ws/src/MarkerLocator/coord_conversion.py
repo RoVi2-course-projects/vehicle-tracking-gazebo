@@ -2,11 +2,17 @@
 # Third party libraries
 from geometry_msgs.msg import Point
 import numpy as np
+import get_model_info
 
 
 def get_normalized_gsd():
     #TODO: Complete function
-    gsd = 10
+    position_iris = get_model_info.get_position("Marker", "link")
+    rpy_iris = get_model_info.get_euler_angles("iris", "link")
+    height = position_iris[2]
+
+    gsd = get_corrected_coords(position_iris, height, rpy_iris)
+
     return gsd
 
 
@@ -34,16 +40,21 @@ def gsd_correction(gsd_0, height, alpha, theta, pix_distance):
     corrected_coord = (height*np.tan(theta)) - (pix_distance*corrected_gsd)
     return corrected_coord
 
-def get_corrected_coords(point):
+def get_corrected_coords(point, height, alpha, rpy_iris):
     coord_x = point.x
     coord_y = point.y
     coord_z = point.z
     # TODO: Convert, if necessary, the coordinates origin from centre to corner.
-    alpha = [0, 0, 0]
-    theta = [0, 0, 0]
-    gsd_0 = [0, 0, 0]
+    alpha = [1.3962634, 1.3962634, 1.396263]
+    fixed_angle = 1.1
+    theta = [rpy_iris[0], rpy_iris[1] + fixed_angle, rpy_iris[2]]
+    # TODO: get correct gsd_0
+    gsd_0 = [height, height, height]
     corrected_x = gsd_correction(gsd_0[0], height, alpha[0], theta[0], coord_x)
     corrected_y = gsd_correction(gsd_0[1], height, alpha[1], theta[1], coord_y)
     corrected_z = gsd_correction(gsd_0[2], height, alpha[2], theta[2], coord_z)
     corrected_point = Point(corrected_x, corrected_y, corrected_z)
     return corrected_point
+
+if __name__ == '__main__':
+    get_normalized_gsd()

@@ -15,6 +15,7 @@ import signal
 import cv2
 import math
 import numpy as np
+from geometry_msgs.msg import Point
 
 # application imports
 from PerspectiveTransform import PerspectiveCorrecter
@@ -24,6 +25,10 @@ from MarkerTracker import MarkerTracker
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+
+# import for vehicle tracking exercise
+import coord_conversion
+import get_model_info
 
 # parameters
 print_debug_messages = False
@@ -80,6 +85,10 @@ class LocatorDriver:
         # self.image_sub = rospy.Subscriber("/markerlocator/image_raw", Image,
         #                                   self.callback)
 
+        # cam params
+        self.fov = 1.3962634
+        self.pix_w = 800
+
         # Initialize trackers.
         for marker_order in marker_orders:
             temp = MarkerTracker(marker_order, default_kernel_size,
@@ -100,6 +109,11 @@ class LocatorDriver:
         else:
             witdh, height = self.cv_image.shape[:2]
         return witdh, height
+
+
+    def get_gsd(self, height, fov=1.3, pix_w=800):
+        gsd = (2 * height * math.tan(self.fov / 2)) / self.pix_w
+        return gsd
 
     def get_image(self):
         self.current_frame = np.copy(self.cv_image)
@@ -171,6 +185,7 @@ class LocatorDriver:
 
 class RosPublisher:
     def __init__(self, markers, markerpose_ros_topic):
+        self.loc_pub = rospy.Publisher('location', Point, queue_size=10)
         # Instantiate ros publisher with information about the markers that
         # will be tracked.
         self.markers = markers
@@ -178,20 +193,32 @@ class RosPublisher:
                                               queue_size=0)
         rospy.init_node('MarkerLocator')
 
-    def publish_marker_locations(self, locations, witdh, height):
+    def publish_marker_locations(self, locations, witdh, height, ld):
         markerpose_msg.header.stamp = rospy.get_rostime()
         j = 0
         for i in self.markers:
             # print 'x%i %i  y%i %i  o%i %i' % (i, locations[j].x, i,
             #   locations[j].y, i, locations[j].theta)
             # ros function
-
+            position_iris = get_model_info.get_position("iris", "link")
+            height_iris = position_iris.z
+            gsd = ld.get_gsd(height_iris)
             markerpose_msg.order = locations[j].order
-            markerpose_msg.x = locations[j].x - height/2.0
-            markerpose_msg.y = locations[j].y - witdh/2.0
+            if locations[j].quality > 0.2:
+                markerpose_msg.x = locations[j].x * gsd# - height/2.0
+                markerpose_msg.y = locations[j].y * gsd# - witdh/2.0
+                markerpose_msg.z = 0
+                point = Point(markerpose_msg.x, markerpose_msg.y, markerpose_msg.z)
+            else:
+                markerpose_msg.x = 9999999
+                markerpose_msg.y = 9999999
+                markerpose_msg.z = 0
+                point = Point(markerpose_msg.x, markerpose_msg.y, markerpose_msg.z)
+
             markerpose_msg.theta = locations[j].theta
             markerpose_msg.quality = locations[j].quality
             self.markerpose_pub.publish(markerpose_msg)
+            self.loc_pub.publish(point)
             j += 1
 
 def main():
@@ -214,6 +241,8 @@ def main():
     persp_corr = PerspectiveCorrecter(reference_point_locations_in_image,
                                       reference_point_loc_in_world_coord)
 
+
+
     while ld.running and stop_flag is False:
         (t1, t0) = (t0, time())
         if print_debug_messages is True:
@@ -225,8 +254,10 @@ def main():
         ld.handle_keyboard_events()
         y = ld.return_positions()
         if publish_to_ros:
+
             w, h = ld.get_image_size()
-            ros_publisher.publish_marker_locations(y, w, h)
+
+            ros_publisher.publish_marker_locations(y, w, h, ld)
         else:
             for k in range(len(y)):
                 try:
