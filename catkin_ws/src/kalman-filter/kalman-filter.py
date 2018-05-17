@@ -9,7 +9,7 @@ class KalmanFilterNode():
 
     def __init__(self):
         rospy.Subscriber("location", Point, self.marker_callback)
-        rospy.Subscriber("gps", Point, self.gps_callback)
+        rospy.Subscriber("bus_model/gps_position_noised", Point, self.gps_callback)
         # Variance matrices
         self.var = 30
         self.gps_var = 10
