@@ -18,7 +18,10 @@ class GPSSubscriber(rospy.Subscriber):
     def callback(self, gps_data):
         new_point = np.array([gps_data.x, gps_data.y])
         if self.last_point is not None:
-            self.heading = new_point - self.last_point
+            heading = new_point - self.last_point
+            # Normalize the heading dividing by its modulus.
+            modulus = np.hypot(heading[0], heading[1])
+            self.heading = heading / modulus
         self.last_point = new_point
         return
 
@@ -33,7 +36,7 @@ def main():
     rate = rospy.Rate(30)
     while not rospy.is_shutdown():
         heading_point = Point(gps_subscriber.heading[0],
-                              gps_subscriber.heading[1])
+                              gps_subscriber.heading[1], 0)
         publisher.publish(heading_point)
         rate.sleep()
 
