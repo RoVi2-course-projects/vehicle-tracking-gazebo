@@ -3,6 +3,8 @@
 import numpy as np
 import rospy
 from geometry_msgs.msg import Point
+# Local libraries
+import variance_model
 
 
 class KalmanFilterNode():
@@ -35,16 +37,27 @@ class KalmanFilterNode():
         return
 
     def update(self):
+        # Process the GPS data
         if self.gps_input is None:
             self.gps_input = self.position
             self.gps_var = 500
+            print("No GPS signal received.")
         else:
-             self.gps_var = 10
+            self.gps_var = 10
+            print("GPS data: [{}, {}, {}]".format(self.gps_input[0],
+                                                  self.gps_input[1],
+                                                  self.gps_input[2]))
+        # Process the marker data
         if self.marker_input is None:
             self.marker_input = self.position
             self.marker_var = 500
+            print("No marker data received.")
         else:
-            self.marker_var = 30
+            distance = np.hypot(self.marker_input[0], self.marker_input[1])
+            self.marker_var = variance_model.get_var_from_distance(distance)
+            print("Marker data: [{}, {}, {}]".format(self.marker_input[0],
+                                                     self.marker_input[1],
+                                                     self.marker_input[2]))
         # 1st stage: Update predicted state and var with GPS data
         pred_state = np.dot(np.eye(3), self.gps_input)
         pred_var = self.var + self.gps_var
@@ -53,12 +66,6 @@ class KalmanFilterNode():
         self.position = pred_state + kalman_gain*(self.marker_input-
                                                   pred_state)
         self.var = pred_var * (1-kalman_gain)
-        print("GPS data: [{}, {}, {}]".format(self.gps_input[0],
-                                              self.gps_input[1],
-                                              self.gps_input[2]))
-        print("Marker data: [{}, {}, {}]".format(self.marker_input[0],
-                                                 self.marker_input[1],
-                                                 self.marker_input[2]))
         print("Estimated pos: [{}, {}, {}]".format(self.position[0],
                                                    self.position[1],
                                                    self.position[2]))
