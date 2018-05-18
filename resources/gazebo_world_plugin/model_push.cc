@@ -25,6 +25,7 @@ namespace gazebo
     // Called by the world update start event
     public: void OnUpdate()
     {
+      this->model->SetLinearVel(ignition::math::Vector3d(3, 0, 0));
       // Apply a small linear velocity to the model.
 
       // gazebo::math::Pose pose = this->model->GetWorldPose();
@@ -38,37 +39,37 @@ namespace gazebo
       //                                (-0.001, 0.001),
       //                                (-0.0, 0.0));
      // this->model->SetWorldPose(pose);
-      duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-      if(duration > 0){
-        this->model->SetLinearVel(ignition::math::Vector3d(0, 3, 0));
-        //std::cout << "seconds:" << duration << std::endl;
-      }
-      if(duration > 10){
-        this->model->SetLinearVel(ignition::math::Vector3d(3, 0, 0));
-
-        // pose = gazebo::math::Pose((-0.0, 0.01),
-        //                            (-0.01, 0.01),
-        //                            (-0.01, 0.01),
-        //                            (-0.01, 0.01),
-        //                            (-0.01, 0.01),
-        //                            (-0.01, 0.01));
-        // this->model->SetWorldPose(pose);
-        // std::cout << "seconds:" << duration << std::endl;
-      }
-      if(duration > 20){
-        this->model->SetLinearVel(ignition::math::Vector3d(0, -3, 0));
-        // std::cout << "seconds:" << duration << std::endl;
-      }
-      if(duration > 30){
-        this->model->SetLinearVel(ignition::math::Vector3d(-3, 0, 0));
-        // std::cout << "seconds:" << duration << std::endl;
-        // this->model->SetWorldPose(pose);
-      }
-      if(duration > 40){
-        //this->model->SetLinearVel(ignition::math::Vector3d(0, 0, 0));
-        // std::cout << "seconds:" << duration << std::endl;
-        start = std::clock(); // reset start timer
-      }
+      // duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+      // if(duration > 0){
+      //   this->model->SetLinearVel(ignition::math::Vector3d(0, 3, 0));
+      //   //std::cout << "seconds:" << duration << std::endl;
+      // }
+      // if(duration > 10){
+      //   this->model->SetLinearVel(ignition::math::Vector3d(3, 0, 0));
+      //
+      //   // pose = gazebo::math::Pose((-0.0, 0.01),
+      //   //                            (-0.01, 0.01),
+      //   //                            (-0.01, 0.01),
+      //   //                            (-0.01, 0.01),
+      //   //                            (-0.01, 0.01),
+      //   //                            (-0.01, 0.01));
+      //   // this->model->SetWorldPose(pose);
+      //   // std::cout << "seconds:" << duration << std::endl;
+      // }
+      // if(duration > 20){
+      //   this->model->SetLinearVel(ignition::math::Vector3d(0, -3, 0));
+      //   // std::cout << "seconds:" << duration << std::endl;
+      // }
+      // if(duration > 30){
+      //   this->model->SetLinearVel(ignition::math::Vector3d(-3, 0, 0));
+      //   // std::cout << "seconds:" << duration << std::endl;
+      //   // this->model->SetWorldPose(pose);
+      // }
+      // if(duration > 40){
+      //   //this->model->SetLinearVel(ignition::math::Vector3d(0, 0, 0));
+      //   // std::cout << "seconds:" << duration << std::endl;
+      //   start = std::clock(); // reset start timer
+      // }
 
       //
     }

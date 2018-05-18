@@ -21,9 +21,9 @@ void DroneController::initialize(){
   pixel_w_camera = 800.0;
 
   pid_yaw.init(0.1, 1.5, -1.5, 0.05, 0.5, 0.0);
-  pid_position_x.init(0.1, 3.5, -3.5, 0.2, 0.0, 0.0);
-  pid_position_y.init(0.1, 3.5, -3.5, 0.2, 0.0, 0.0);
-  pid_height.init(0.1, 1.0, -1.0, 1.0, 0.1, 0.01);
+  pid_position_x.init(0.1, 15.0, -15.0, 3.0, 0.0, 0.0);
+  pid_position_y.init(0.1, 15.0, -15.0, 3.0, 0.0, 0.0);
+  pid_height.init(0.1, 3.0, -3.0, 1.0, 0.1, 0.01);
 
   state_sub = nh.subscribe<mavros_msgs::State>
       ("mavros/state", 10, &DroneController::state_cb, this);
@@ -42,6 +42,9 @@ void DroneController::initialize(){
   gps_heading  = nh.subscribe<std_msgs::Float64>
       ("mavros/global_position/compass_hdg", 10, &DroneController::heading_cb,
       this);
+
+  kalman_estimate_marker_position_sub  = nh.subscribe<geometry_msgs::Point>
+      ("/position_estimate", 10, &DroneController::kalman_position_cb, this);
 
   //the setpoint publishing rate MUST be faster than 2Hz
   ros::Rate rate(20.0);
@@ -81,21 +84,20 @@ void DroneController::initialize(){
 void DroneController::update_drone_position(){
   double head = angles::from_degrees(angles::normalize_angle(heading.data));
 
-
-  double x_offset_from_center = markerpose.x;
-  double y_offset_from_center = -markerpose.y;
-
+  double x_offset_from_center = kalman_estimate_marker_position.x;
+  double y_offset_from_center = kalman_estimate_marker_position.y;
+  //
   double angle = angles::from_degrees(heading.data);
 
-  vector<double> rotated_pos = local_to_global_frame( heading.data,
-                                                      x_offset_from_center,
-                                                      y_offset_from_center);
+  // vector<double> rotated_pos = local_to_global_frame( heading.data,
+  //                                                     x_offset_from_center,
+  //                                                     y_offset_from_center);
 
   double gsd = get_gsd(altitude.local, fov_camera, pixel_w_camera);
-  double ground_dist_to_taget = calculate_distance_to_target(gsd,
-                                                             -rotated_pos[0],
-                                                             -rotated_pos[1]);
-  cout << "ground distance to target: " << ground_dist_to_taget << endl;
+  // double ground_dist_to_taget = calculate_distance_to_target(gsd,
+  //                                                            rotated_pos[0],
+  //                                                            rotated_pos[1]);
+  // cout << "ground distance to target: " << ground_dist_to_taget << endl;
 
 
   geometry_msgs::TwistStamped move_msg;
@@ -108,23 +110,25 @@ void DroneController::update_drone_position(){
                                                             -M_PI/2), head);
   double err = add_angles(M_PI, -abs(shortest_dist));
   double z_angular_velocity = pid_yaw.calculate(0, shortest_dist);
-  cout << "err: " << abs(err) << " < " << max_angle_error_before_descending << endl;
-  cout << "quality: " << markerpose.quality  << endl;
-  if (markerpose.quality > 0.2){
-    double pos_x_err = pid_position_x.calculate(0, -rotated_pos[0]*gsd);
-    double pos_y_err = pid_position_y.calculate(0, -rotated_pos[1]*gsd);
+  // cout << "err: " << abs(err) << " < " << max_angle_error_before_descending << endl;
+  // cout << "quality: " << markerpose.quality  << endl;
+  if (altitude.local > 0.5){
+    // double pos_x_err = pid_position_x.calculate(0, -rotated_pos[0]);
+    // double pos_y_err = pid_position_y.calculate(0, -rotated_pos[1]);
+    double pos_x_err = pid_position_x.calculate(0, -x_offset_from_center);
+    double pos_y_err = pid_position_y.calculate(0, -y_offset_from_center);
     move_msg.twist.linear.x = pos_x_err;
     move_msg.twist.linear.y = pos_y_err;
-    move_msg.twist.angular.z = z_angular_velocity;
-
-    if(ground_dist_to_taget < 5.00){
-          if(tracking_altitude > 1.0){
-            tracking_altitude -= 0.1;
+    //move_msg.twist.angular.z = 0.05;// z_angular_velocity;
+    double abs_error = abs(x_offset_from_center)+abs(y_offset_from_center);
+    cout << "ABS ERR: " << abs_error << endl;
+    if(abs_error < 3){
+            tracking_altitude -= 0.05;
             cout << "tracking_altitude: " << tracking_altitude << endl;
-          }
     }
   }
-  print_data(x_offset_from_center, y_offset_from_center, altitude.local);
+  cout << "height: " << altitude.local << endl;
+  //print_data(x_offset_from_center, y_offset_from_center, altitude.local);
   target_velocity.publish(move_msg);
 
 }
@@ -142,7 +146,9 @@ double DroneController::calculate_distance_to_target(double gsd,
 
 vector<double> DroneController::local_to_global_frame(double a, double x,
                                                       double y){
+
   double angle = angles::from_degrees(a);
+  cout << "angle rad: " << angle<< " angle deg: "<< a << endl;
 
   double rotationmatrix_inverse[2][2] = {{cos(angle), sin(angle)},
                                           {-sin(angle), cos(angle)}};
@@ -191,7 +197,10 @@ void DroneController::altitude_cb(const mavros_msgs::Altitude::ConstPtr& msg){
 void DroneController::heading_cb(const std_msgs::Float64::ConstPtr& msg){
  heading = *msg;
 }
-
+void DroneController::kalman_position_cb(
+    const geometry_msgs::Point::ConstPtr& msg){
+      kalman_estimate_marker_position = *msg;
+    }
 DroneController::~DroneController(){
     save_data_file.close();
 }

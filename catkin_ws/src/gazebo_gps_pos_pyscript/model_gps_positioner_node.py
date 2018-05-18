@@ -5,7 +5,8 @@ from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import Point
 
 GPS_FREQUENCY = 50 # [BroadcastsPerSecond]
-MODEL_NAME = "Marker"
+MODEL_NAME_MARKER = "Marker"
+MODEL_NAME_DRONE = "iris"
 
 def apply_noise(noise_free_point):
     # Noise model based on wikipedia saying that GPS accuracy is 5 meters
@@ -18,6 +19,8 @@ def apply_noise(noise_free_point):
 
     # Constant offset is a result of the receiver not being aligned with
     # a marker perfectly; offset has been chosen arbitrarily.
+
+    #
 
     offset_x = 0.2
     offset_y = 0.7
@@ -40,8 +43,8 @@ def get_position(blockName="Marker", relative_entity_name="link"):
         model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
         resp_coordinates = model_coordinates(blockName, relative_entity_name)
         point = Point(resp_coordinates.pose.position.x,
-	              resp_coordinates.pose.position.y,
-    		      resp_coordinates.pose.position.z)
+                      resp_coordinates.pose.position.y,
+                      resp_coordinates.pose.position.z)
 
     except rospy.ServiceException as e:
         rospy.loginfo("Get Model State service call failed: {0}".format(e))
@@ -54,10 +57,16 @@ def gps_position_publishers():
     rate = rospy.Rate(GPS_FREQUENCY)
 
     while not rospy.is_shutdown():
-	point = get_position(MODEL_NAME)
-	pos_pub.publish(point)
-	noisy_pos_pub.publish(apply_noise(point))
-	rate.sleep()
+        point_marker = get_position(MODEL_NAME_MARKER)
+        point_drone = get_position(MODEL_NAME_DRONE)
+
+        point_diff = Point(point_marker.x - point_drone.x,
+                           point_marker.y - point_drone.y,
+                           point_marker.z - point_drone.z)
+
+        pos_pub.publish(point_diff)
+        noisy_pos_pub.publish(apply_noise(point_diff))
+        rate.sleep()
 
 if __name__ == '__main__':
     try:
