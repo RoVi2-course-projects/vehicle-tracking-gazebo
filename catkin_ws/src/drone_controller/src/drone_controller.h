@@ -27,7 +27,7 @@
 #include <list>
 #include <fstream>
 
-#define tracking_altitude_ 20
+#define tracking_altitude_ 13
 #define max_pixel_error_before_descending_ 50
 #define max_angle_error_before_descending_ M_PI/6
 

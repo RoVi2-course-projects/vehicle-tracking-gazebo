@@ -21,9 +21,9 @@ void DroneController::initialize(){
   pixel_w_camera = 800.0;
 
   pid_yaw.init(0.1, 1.5, -1.5, 0.05, 0.5, 0.0);
-  pid_position_x.init(0.1, 3.5, -3.5, 0.2, 0.0, 0.0);
-  pid_position_y.init(0.1, 3.5, -3.5, 0.2, 0.0, 0.0);
-  pid_height.init(0.1, 1.0, -1.0, 1.0, 0.1, 0.01);
+  pid_position_x.init(0.1, 15.0, -15.0, 3.0, 0.0, 0.0);
+  pid_position_y.init(0.1, 15.0, -15.0, 3.0, 0.0, 0.0);
+  pid_height.init(0.1, 3.0, -3.0, 1.0, 0.1, 0.01);
 
   state_sub = nh.subscribe<mavros_msgs::State>
       ("mavros/state", 10, &DroneController::state_cb, this);
@@ -112,22 +112,22 @@ void DroneController::update_drone_position(){
   double z_angular_velocity = pid_yaw.calculate(0, shortest_dist);
   // cout << "err: " << abs(err) << " < " << max_angle_error_before_descending << endl;
   // cout << "quality: " << markerpose.quality  << endl;
-  if (altitude.local > 15){
+  if (altitude.local > 0.5){
     // double pos_x_err = pid_position_x.calculate(0, -rotated_pos[0]);
     // double pos_y_err = pid_position_y.calculate(0, -rotated_pos[1]);
     double pos_x_err = pid_position_x.calculate(0, -x_offset_from_center);
     double pos_y_err = pid_position_y.calculate(0, -y_offset_from_center);
     move_msg.twist.linear.x = pos_x_err;
     move_msg.twist.linear.y = pos_y_err;
-    //move_msg.twist.angular.z = z_angular_velocity;
-
-    if(false){
-          if(tracking_altitude > 1.0){
-            tracking_altitude -= 0.1;
+    //move_msg.twist.angular.z = 0.05;// z_angular_velocity;
+    double abs_error = abs(x_offset_from_center)+abs(y_offset_from_center);
+    cout << "ABS ERR: " << abs_error << endl;
+    if(abs_error < 3){
+            tracking_altitude -= 0.05;
             cout << "tracking_altitude: " << tracking_altitude << endl;
-          }
     }
   }
+  cout << "height: " << altitude.local << endl;
   //print_data(x_offset_from_center, y_offset_from_center, altitude.local);
   target_velocity.publish(move_msg);
 
@@ -146,7 +146,9 @@ double DroneController::calculate_distance_to_target(double gsd,
 
 vector<double> DroneController::local_to_global_frame(double a, double x,
                                                       double y){
+
   double angle = angles::from_degrees(a);
+  cout << "angle rad: " << angle<< " angle deg: "<< a << endl;
 
   double rotationmatrix_inverse[2][2] = {{cos(angle), sin(angle)},
                                           {-sin(angle), cos(angle)}};

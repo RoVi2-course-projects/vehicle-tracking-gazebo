@@ -16,6 +16,7 @@ import cv2
 import math
 import numpy as np
 from geometry_msgs.msg import Point
+from std_msgs.msg import Float64
 
 # application imports
 from PerspectiveTransform import PerspectiveCorrecter
@@ -82,6 +83,8 @@ class LocatorDriver:
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber(markerlocator_sub_topic, Image,
                                           self.callback)
+        self.heading_sub = rospy.Subscriber("/mavros/global_position/compass_hdg", Float64 , self.callback_heading)
+        self.heading = 0
         # self.image_sub = rospy.Subscriber("/markerlocator/image_raw", Image,
         #                                   self.callback)
 
@@ -95,6 +98,9 @@ class LocatorDriver:
                                  scaling_parameter)
             self.trackers.append(temp)
             self.old_locations.append(MarkerPose(None, None, None, None, None))
+
+    def callback_heading(self, data):
+        self.heading = data
 
     def callback(self,data):
         try:
@@ -201,25 +207,45 @@ class RosPublisher:
             #   locations[j].y, i, locations[j].theta)
             # ros function
             position_iris = get_model_info.get_position("iris", "link")
+            rpy_iris = get_model_info.get_euler_angles("iris", "link")
             height_iris = position_iris.z
+             # simple gsd obtained now - problems with the coord_conversion method
             gsd = ld.get_gsd(height_iris)
+
+            #######
+            # quick fix rotation rotation matrix to obtain global frame
+            # should be elsewhere
+            heading = ld.heading.data
+            R = np.zeros((2,2))
+            R[0][0] = math.cos(heading)
+            R[0][1] = -math.sin(heading)
+            R[1][0] = math.sin(heading)
+            R[1][1] = math.cos(heading)
+            Rv = np.linalg.inv(R)
+            xy_local = np.zeros((2,1))
+            xy_local[0][0] = locations[j].x-400
+            xy_local[1][0] = locations[j].y-400
+            xy_global = Rv * xy_local
+            ########
+            
             markerpose_msg.order = locations[j].order
             if locations[j].quality > 0.2:
-                markerpose_msg.x = locations[j].x * gsd# - height/2.0
-                markerpose_msg.y = locations[j].y * gsd# - witdh/2.0
+                markerpose_msg.x = np.float64(xy_global[0][0] * gsd)# - height/2.0
+                markerpose_msg.y = np.float64(xy_global[1][0] * gsd)# - witdh/2.0
                 markerpose_msg.z = 0
                 point = Point(markerpose_msg.x, markerpose_msg.y, markerpose_msg.z)
-            else:
-                markerpose_msg.x = 9999999
-                markerpose_msg.y = 9999999
-                markerpose_msg.z = 0
-                point = Point(markerpose_msg.x, markerpose_msg.y, markerpose_msg.z)
+                markerpose_msg.theta = locations[j].theta
+                markerpose_msg.quality = locations[j].quality
+                self.markerpose_pub.publish(markerpose_msg)
+                self.loc_pub.publish(point)
+                j += 1
+            # else:
+                # markerpose_msg.x = None
+                # markerpose_msg.y = None
+                # markerpose_msg.z = 0
+                # point = Point(markerpose_msg.x, markerpose_msg.y, markerpose_msg.z)
 
-            markerpose_msg.theta = locations[j].theta
-            markerpose_msg.quality = locations[j].quality
-            self.markerpose_pub.publish(markerpose_msg)
-            self.loc_pub.publish(point)
-            j += 1
+
 
 def main():
 

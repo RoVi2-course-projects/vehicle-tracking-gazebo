@@ -13,7 +13,9 @@ class KalmanFilterNode():
         # Subscribers configuration
         rospy.Subscriber("/markerlocator/location", Point, self.marker_callback,
                          queue_size=1)
-        rospy.Subscriber("/marker_model/gps_position_noised", Point, self.gps_callback,
+        rospy.Subscriber("/marker_model/gps_position", Point, self.gps_callback,
+                         queue_size=1)
+        rospy.Subscriber("/marker_model/gps_position", Point, self.gps_callback_truth,
                          queue_size=1)
         # Publisher configuration
         pub_topic = "/position_estimate"
@@ -25,11 +27,17 @@ class KalmanFilterNode():
         # Drone predicted and corrected position
         self.position = np.zeros([3,1])
         # GPS and marker measurements
+        self.gps_input_truth = None
         self.gps_input = None
         self.marker_input = None
 
+        self.file_data = open("/home/per/GIT/logdata.txt","w")
+
     def gps_callback(self, data):
         self.gps_input = np.array([data.x, data.y, data.z]).reshape(3,1)
+        return
+    def gps_callback_truth(self, data):
+        self.gps_input_truth = np.array([data.x, data.y, data.z]).reshape(3,1)
         return
 
     def marker_callback(self, data):
@@ -37,22 +45,44 @@ class KalmanFilterNode():
         return
 
     def update(self):
+        marker_detected = True
         # Process the GPS data
+        if self.gps_input_truth is None:
+            self.gps_input_truth = [0,0,0]
+        else:
+            self.gps_input_truth = self.gps_input_truth
+
+
         if self.gps_input is None:
             self.gps_input = self.position
             self.gps_var = 500
+            gps_err = 10000
             print("No GPS signal received.")
+
+            self.file_data.write(str(gps_err))
+            self.file_data.write(";")
         else:
             self.gps_var = 10
+            gps_err = abs(self.gps_input[0])+abs(self.gps_input[1])
+            self.file_data.write(str(gps_err)[1:-1])
+            self.file_data.write(";")
             print("GPS data: [{}, {}, {}]".format(self.gps_input[0],
                                                   self.gps_input[1],
                                                   self.gps_input[2]))
         # Process the marker data
         if self.marker_input is None:
+            marker_detected = False
             self.marker_input = self.position
             self.marker_var = 500
             print("No marker data received.")
+            marker_err = 10000
+            self.file_data.write(str(marker_err))
+            self.file_data.write(";")
         else:
+            marker_detected = True
+            marker_err = abs(self.marker_input[0])+abs(self.marker_input[1])
+            self.file_data.write(str(marker_err)[1:-1])
+            self.file_data.write(";")
             distance = np.hypot(self.marker_input[0], self.marker_input[1])
             self.marker_var = variance_model.get_var_from_distance(distance)
             print("Marker data: [{}, {}, {}]".format(self.marker_input[0],
@@ -71,6 +101,14 @@ class KalmanFilterNode():
                                                    self.position[2]))
         self.gps_input = None
         self.marker_input = None
+
+        pos_err = abs(self.position[0])+abs(self.position[1])
+        self.file_data.write(str(pos_err)[1:-1])
+        self.file_data.write(";")
+        truth = abs(self.gps_input_truth[0])+abs(self.gps_input_truth[1])
+        self.file_data.write(str(truth)[1:-1])
+        self.file_data.write("\n")
+
         return
 
     def run(self):
@@ -80,6 +118,7 @@ class KalmanFilterNode():
             est_position = Point(self.position[0][0], self.position[1][0],
                                  self.position[2][0])
             self.publisher.publish(est_position)
+
             rate.sleep()
         return
 
